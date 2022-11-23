@@ -1,0 +1,73 @@
+version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:5.0.6
+    hostname: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ZzYPI*=NQ3Rn2a
+      MONGO_INITDB_DATABASE: akdep
+      TZ: Aisa/Tehran
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-configdb:/data/configdb
+      - mongodb-initjs:/docker-entrypoint-initdb.d/mongo-init.js
+  rabbitmq:
+    image: m.docker-registry.ir/rabbitmq:3.8.17-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    hostname: rabbitmq
+    volumes:
+      - rabbitmq-etc:/etc/rabbitmq/
+      - rabbitmq-data:/var/lib/rabbitmq/
+      - rabbitmq-log:/var/log/rabbitmq/
+  backend:
+    image: akdep_backend
+    ports:
+      - 8008:8000
+    environment:
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_USER: root
+      MONGO_PASSWORD: ZzYPI*=NQ3Rn2a
+      MONGO_DB: akdep
+      MONGO_AUTH_SRC: admin
+      SECRET_KEY: TNOAHUTNOAHUTNAODHHTNAONTUHANOUHNTAO903849028
+      MAX_CONNECTIONS_COUNT: 50
+      PYTHONUNBUFFERED: "TRUE"
+      S3_KEY: jEt4rYHwRj328S7y
+      S3_SECRET: X1qlyeLyEBxN8z1Q3mQJ6OBUZc4BjUUA
+      S3_ENDPOINT: http://172.15.0.25:9000
+      S3_BUCKET: akdep
+      QBIT_URL: http://172.15.0.25:8080/
+      QBIT_USER: admin
+      QBIT_PASS: adminadmin
+      CELERY_BROKER_URL: amqp://guest:guest@172.15.0.25:5672/
+  vault:
+    image: hashicorp/vault:1.9.6
+    volumes:
+      - vault_data:/vault/file
+    ports:
+      - "8201:8200/tcp"
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8200 || exit 1
+      interval: 10s
+      retries: 12
+      start_period: 10s
+      timeout: 10s
+
+
+volumes:
+  mongodb-data:
+  mongodb-configdb:
+  mongodb-initjs:
+  rabbitmq-etc:
+  rabbitmq-data:
+  rabbitmq-log:
+  vault_data:

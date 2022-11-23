@@ -1,0 +1,134 @@
+version: "3.8"
+
+# Settings and configurations that are common for all containers
+x-minio-common: &minio-common
+  image: quay.io/minio/minio:RELEASE.2022-08-22T23-53-06Z
+  command: server --console-address ":9001" http://minio1/data{1...2}
+  expose:
+    - "9000"
+    - "9001"
+  environment:
+    MINIO_ROOT_USER: minioadmin
+    MINIO_ROOT_PASSWORD: minioadmin
+  healthcheck:
+    test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+    interval: 30s
+    timeout: 20s
+    retries: 3
+
+services:
+  minio1:
+    <<: *minio-common
+    hostname: minio1
+    volumes:
+      - data1-1:/data1
+      - data1-2:/data2
+  #    minio2:
+  #      <<: *minio-common
+  #      hostname: minio2
+  #      volumes:
+  #        - data2-1:/data1
+  #        - data2-2:/data2
+  #    minio3:
+  #      <<: *minio-common
+  #      hostname: minio3
+  #      volumes:
+  #        - data3-1:/data1
+  #        - data3-2:/data2
+  #    minio4:
+  #      <<: *minio-common
+  #      hostname: minio4
+  #      volumes:
+  #        - data4-1:/data1
+  #        - data4-2:/data2
+  mongodb:
+    image: m.docker-registry.ir/mongo:5.0.6
+    #    image: mongo:5.0.6
+    hostname: mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ZzYPI*=NQ3Rn2a
+      MONGO_INITDB_DATABASE: akdep
+      TZ: Aisa/Tehran
+    volumes:
+      - mongodb-data:/data/db
+      - mongodb-configdb:/data/configdb
+      - mongodb-initjs:/docker-entrypoint-initdb.d/mongo-init.js
+  rabbitmq:
+    image: m.docker-registry.ir/rabbitmq:3.8.17-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    hostname: rabbitmq
+    volumes:
+      - rabbitmq-etc:/etc/rabbitmq/
+      - rabbitmq-data:/var/lib/rabbitmq/
+      - rabbitmq-log:/var/log/rabbitmq/
+  backend:
+    image: akdep_backend
+    ports:
+      - 8008:8000
+    environment:
+      MONGO_HOST: mongodb
+      MONGO_PORT: 27017
+      MONGO_USER: root
+      MONGO_PASSWORD: ZzYPI*=NQ3Rn2a
+      MONGO_DB: akdep
+      MONGO_AUTH_SRC: admin
+      SECRET_KEY: TNOAHUTNOAHUTNAODHHTNAONTUHANOUHNTAO903849028
+      MAX_CONNECTIONS_COUNT: 50
+      PYTHONUNBUFFERED: "TRUE"
+      S3_KEY: jEt4rYHwRj328S7y
+      S3_SECRET: X1qlyeLyEBxN8z1Q3mQJ6OBUZc4BjUUA
+      S3_ENDPOINT: http://172.15.0.25:9000
+      S3_BUCKET: akdep
+      QBIT_URL: http://172.15.0.25:8080/
+      QBIT_USER: admin
+      QBIT_PASS: adminadmin
+      CELERY_BROKER_URL: amqp://guest:guest@172.15.0.25:5672/
+  nginx:
+    image: m.docker-registry.ir/nginx:1.19.2-alpine
+    hostname: nginx
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    depends_on:
+      - minio1
+#      - minio2
+#      - minio3
+#      - minio4
+  vault:
+    image: hashicorp/vault:1.9.6
+    volumes:
+      - vault_data:/vault/file
+    ports:
+      - "8201:8200/tcp"
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider http://localhost:8200 || exit 1
+      interval: 10s
+      retries: 12
+      start_period: 10s
+      timeout: 10s
+
+volumes:
+  mongodb-data:
+  mongodb-configdb:
+  mongodb-initjs:
+  rabbitmq-etc:
+  rabbitmq-data:
+  rabbitmq-log:
+  vault_data:
+  data1-1:
+  data1-2:
+#  data2-1:
+#  data2-2:
+#  data3-1:
+#  data3-2:
+#  data4-1:
+#  data4-2:
